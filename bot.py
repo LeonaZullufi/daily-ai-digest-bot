@@ -35,11 +35,27 @@ def fetch_latest_youtube_video(channel_url):
     response.raise_for_status()
     
     import xml.etree.ElementTree as ET
+    
+    namespaces = {
+        'atom': 'http://www.w3.org/2005/Atom',
+        'yt': 'http://www.youtube.com/xml/schemas/2015'
+    }
+    
     root = ET.fromstring(response.content)
     
-    entry = root.find('entry')
-    video_id = entry.find('videoId').text
-    video_title = entry.find('title').text
+    entry = root.find('atom:entry', namespaces)
+    if entry is None:
+        raise ValueError("No entry found in RSS feed")
+    
+    video_id_elem = entry.find('yt:videoId', namespaces)
+    if video_id_elem is None:
+        raise ValueError("No videoId found in entry")
+    
+    video_id = video_id_elem.text
+    
+    title_elem = entry.find('atom:title', namespaces)
+    video_title = title_elem.text if title_elem is not None else "Untitled"
+    
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     
     return {
