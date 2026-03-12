@@ -12,21 +12,33 @@ YOUTUBE_CHANNEL_URL = os.getenv("YOUTUBE_CHANNEL_URL")
 
 
 def fetch_latest_youtube_video(channel_url):
-    """Fetch the latest video from a YouTube channel using RSS feed."""
-    ydl_opts = {'quiet': True, 'no_warnings': True}
+    """Fetch the latest video from a YouTube channel using Invidious API."""
+    channel_handle = channel_url.split('@')[-1].rstrip('/')
     
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(channel_url, download=False)
-        
-        video_id = info['id']
-        video_title = info['title']
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        
-        return {
-            'id': video_id,
-            'title': video_title,
-            'url': video_url
-        }
+    invidious_instances = [
+        "https://invidious.fdn.dev",
+        "https://invidious.jingl.xyz",
+        "https://invidious.kavin.rocks"
+    ]
+    
+    for instance in invidious_instances:
+        try:
+            response = requests.get(
+                f"{instance}/api/v1/channels/{channel_handle}/latest",
+                timeout=10
+            )
+            if response.status_code == 200:
+                data = response.json()
+                video = data['latestVideos'][0]
+                return {
+                    'id': video['videoId'],
+                    'title': video['title'],
+                    'url': f"https://www.youtube.com/watch?v={video['videoId']}"
+                }
+        except:
+            continue
+    
+    raise ValueError("Could not fetch latest video from any Invidious instance")
 
 
 def extract_transcript(video_url):
