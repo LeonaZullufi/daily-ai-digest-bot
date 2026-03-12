@@ -77,9 +77,9 @@ def extract_transcript(video_url):
     
     try:
         api = YouTubeTranscriptApi()
-        transcript_list = api.get_transcript(video_id, languages=['en'])
+        transcript_data = api.fetch(video_id, languages=['en'])
         
-        transcript_parts = [item['text'] for item in transcript_list]
+        transcript_parts = [snippet.text for snippet in transcript_data.snippets]
         transcript = ' '.join(transcript_parts)
         
         return transcript
