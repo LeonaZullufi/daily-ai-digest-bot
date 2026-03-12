@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import yt_dlp
+import scrapetube
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,33 +13,27 @@ YOUTUBE_CHANNEL_URL = os.getenv("YOUTUBE_CHANNEL_URL")
 
 
 def fetch_latest_youtube_video(channel_url):
-    """Fetch the latest video from a YouTube channel using Invidious API."""
+    """Fetch the latest video from a YouTube channel using scrapetube."""
     channel_handle = channel_url.split('@')[-1].rstrip('/')
     
-    invidious_instances = [
-        "https://invidious.fdn.dev",
-        "https://invidious.jingl.xyz",
-        "https://invidious.kavin.rocks"
-    ]
+    videos = scrapetube.get_channel(channel_handle)
     
-    for instance in invidious_instances:
-        try:
-            response = requests.get(
-                f"{instance}/api/v1/channels/{channel_handle}/latest",
-                timeout=10
-            )
-            if response.status_code == 200:
-                data = response.json()
-                video = data['latestVideos'][0]
-                return {
-                    'id': video['videoId'],
-                    'title': video['title'],
-                    'url': f"https://www.youtube.com/watch?v={video['videoId']}"
-                }
-        except:
-            continue
+    for video in videos:
+        video_id = video['videoId']
+        break
     
-    raise ValueError("Could not fetch latest video from any Invidious instance")
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    
+    ydl_opts = {'quiet': True, 'no_warnings': True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+        video_title = info['title']
+    
+    return {
+        'id': video_id,
+        'title': video_title,
+        'url': video_url
+    }
 
 
 def extract_transcript(video_url):
