@@ -76,14 +76,16 @@ def extract_transcript(video_url):
     video_id = video_id_match.group(1)
     
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+        api = YouTubeTranscriptApi()
+        transcript_list = api.get_transcript(video_id, languages=['en'])
         
         transcript_parts = [item['text'] for item in transcript_list]
         transcript = ' '.join(transcript_parts)
         
         return transcript
     except Exception as e:
-        raise ValueError(f"Could not fetch transcript: {str(e)}")
+        print(f"Could not fetch transcript: {str(e)}")
+        return None
 
 
 def fetch_free_openrouter_models():
