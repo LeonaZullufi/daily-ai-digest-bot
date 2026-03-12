@@ -154,26 +154,51 @@ def summarize_transcript(transcript, model_id):
 
 def send_to_discord(video_info, summaries):
     """Send the result to a Discord channel using a webhook."""
-    embed = {
-        "title": f"📺 Daily AI Digest - {video_info['title']}",
-        "url": video_info['url'],
-        "color": 5814783,
-        "fields": []
-    }
+    MAX_LENGTH = 1900
+    
+    message_parts = []
+    
+    message_parts.append(f"🎬 **Daily AI Digest - {video_info['title']}**\n{video_info['url']}\n")
     
     for i, summary in enumerate(summaries):
-        embed["fields"].append({
-            "name": f"Summary {i + 1}",
-            "value": summary[:1000]
-        })
+        message_parts.append(f"\n**Summary {i + 1}:**\n{summary}")
     
-    payload = {
-        "embeds": [embed],
-        "content": "🎬 **New AI Daily Digest Available!**"
-    }
+    full_message = ''.join(message_parts)
     
-    response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
-    response.raise_for_status()
+    if len(full_message) <= MAX_LENGTH:
+        payload = {
+            "content": full_message
+        }
+        try:
+            response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Failed to send Discord message: {e}")
+    else:
+        chunks = []
+        current_chunk = ""
+        
+        for part in message_parts:
+            if len(current_chunk) + len(part) <= MAX_LENGTH:
+                current_chunk += part
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = part
+        
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        for i, chunk in enumerate(chunks):
+            payload = {
+                "content": chunk
+            }
+            try:
+                response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
+                response.raise_for_status()
+                print(f"Sent chunk {i+1}/{len(chunks)}")
+            except Exception as e:
+                print(f"Failed to send Discord chunk {i+1}: {e}")
 
 
 def main():
