@@ -2,7 +2,6 @@ import os
 import json
 import requests
 import yt_dlp
-import scrapetube
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,21 +12,35 @@ YOUTUBE_CHANNEL_URL = os.getenv("YOUTUBE_CHANNEL_URL")
 
 
 def fetch_latest_youtube_video(channel_url):
-    """Fetch the latest video from a YouTube channel using scrapetube."""
-    channel_handle = channel_url.split('@')[-1].rstrip('/')
+    """Fetch the latest video from a YouTube channel using RSS feed."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
     
-    videos = scrapetube.get_channel(channel_handle)
+    response = requests.get(channel_url, headers=headers, timeout=30)
+    response.raise_for_status()
     
-    for video in videos:
-        video_id = video['videoId']
-        break
+    import re
+    channel_id_match = re.search(r'"channelId":"UC([a-zA-Z0-9_-]{22})"', response.text)
+    if not channel_id_match:
+        channel_id_match = re.search(r'channel_id=UC([a-zA-Z0-9_-]{22})', response.text)
     
+    if not channel_id_match:
+        raise ValueError("Could not find channel ID")
+    
+    channel_id = "UC" + channel_id_match.group(1)
+    
+    rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    response = requests.get(rss_url, headers=headers, timeout=30)
+    response.raise_for_status()
+    
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(response.content)
+    
+    entry = root.find('entry')
+    video_id = entry.find('videoId').text
+    video_title = entry.find('title').text
     video_url = f"https://www.youtube.com/watch?v={video_id}"
-    
-    ydl_opts = {'quiet': True, 'no_warnings': True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=False)
-        video_title = info['title']
     
     return {
         'id': video_id,
