@@ -11,44 +11,22 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 YOUTUBE_CHANNEL_URL = os.getenv("YOUTUBE_CHANNEL_URL")
 
 
-def get_channel_id(channel_url):
-    """Extract channel ID from YouTube channel page."""
-    response = requests.get(channel_url)
-    response.raise_for_status()
-    
-    import re
-    match = re.search(r'"channelId":"([^"]+)"', response.text)
-    if match:
-        return match.group(1)
-    
-    match = re.search(r'channel_id=([a-zA-Z0-9_-]+)', response.text)
-    if match:
-        return match.group(1)
-    
-    raise ValueError("Could not find channel ID")
-
-
 def fetch_latest_youtube_video(channel_url):
     """Fetch the latest video from a YouTube channel using RSS feed."""
-    channel_id = get_channel_id(channel_url)
-    rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    ydl_opts = {'quiet': True, 'no_warnings': True}
     
-    response = requests.get(rss_url)
-    response.raise_for_status()
-    
-    import xml.etree.ElementTree as ET
-    root = ET.fromstring(response.content)
-    
-    entry = root.find('entry')
-    video_id = entry.find('{http://www.youtube.com/xml/schemas/2015}videoId').text
-    video_title = entry.find('title').text
-    video_url = f"https://www.youtube.com/watch?v={video_id}"
-    
-    return {
-        'id': video_id,
-        'title': video_title,
-        'url': video_url
-    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(channel_url, download=False)
+        
+        video_id = info['id']
+        video_title = info['title']
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        
+        return {
+            'id': video_id,
+            'title': video_title,
+            'url': video_url
+        }
 
 
 def extract_transcript(video_url):
