@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-import yt_dlp
+from youtube_transcript_api import YouTubeTranscriptApi
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -66,48 +66,24 @@ def fetch_latest_youtube_video(channel_url):
 
 
 def extract_transcript(video_url):
-    """Extract the transcript of a YouTube video using yt-dlp."""
-    ydl_opts = {
-        'writeautomaticsub': True,
-        'subtitleslangs': ['en'],
-        'skip_download': True,
-        'quiet': True,
-        'no_warnings': True,
-        'outtmpl': '/tmp/subtitle'
-    }
+    """Extract the transcript of a YouTube video using youtube-transcript-api."""
+    import re
     
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=False)
-        
-        if 'subtitles' in info and 'en' in info['subtitles']:
-            subtitle_url = info['subtitles']['en'][0]['url']
-            response = requests.get(subtitle_url)
-            response.raise_for_status()
-            
-            import xml.etree.ElementTree as ET
-            root = ET.fromstring(response.content)
-            
-            transcript = []
-            for element in root.findall('.//text'):
-                transcript.append(element.text or '')
-            
-            return ''.join(transcript)
-        
-        if 'automatic_captions' in info and 'en' in info['automatic_captions']:
-            subtitle_url = info['automatic_captions']['en'][0]['url']
-            response = requests.get(subtitle_url)
-            response.raise_for_status()
-            
-            import xml.etree.ElementTree as ET
-            root = ET.fromstring(response.content)
-            
-            transcript = []
-            for element in root.findall('.//text'):
-                transcript.append(element.text or '')
-            
-            return ''.join(transcript)
+    video_id_match = re.search(r'(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})', video_url)
+    if not video_id_match:
+        raise ValueError("Could not extract video ID from URL")
     
-    return None
+    video_id = video_id_match.group(1)
+    
+    try:
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+        
+        transcript_parts = [item['text'] for item in transcript_list]
+        transcript = ' '.join(transcript_parts)
+        
+        return transcript
+    except Exception as e:
+        raise ValueError(f"Could not fetch transcript: {str(e)}")
 
 
 def fetch_free_openrouter_models():
