@@ -39,11 +39,8 @@ def fetch_latest_youtube_video(channel_url):
     import xml.etree.ElementTree as ET
     root = ET.fromstring(response.content)
     
-    ns = {'yt': 'http://www.youtube.com/xml/schemas/2015',
-          'media': 'http://search.yahoo.com/mrss/'}
-    
     entry = root.find('entry')
-    video_id = entry.find('yt:videoId', ns).text
+    video_id = entry.find('{http://www.youtube.com/xml/schemas/2015}videoId').text
     video_title = entry.find('title').text
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     
